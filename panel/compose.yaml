@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  panel:
+    build: .
+    container_name: pelican-panel
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: pelican_db
+      DB_USERNAME: pelican_user
+      DB_PASSWORD: pelican_password
+    #volumes:
+    #  - ./data:/var/www/pelican
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - pelican-net
+
+  db:
+    image: mysql:8.0
+    container_name: pelican-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: pelican_db
+      MYSQL_USER: pelican_user
+      MYSQL_PASSWORD: pelican_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - pelican-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "pelican_user", "-p$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: pelican-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - pelican-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+networks:
+  pelican-net:
+    driver: bridge
+
+volumes:
+  db_data:
+
